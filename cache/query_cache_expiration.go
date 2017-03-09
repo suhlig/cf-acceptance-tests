@@ -17,9 +17,12 @@ var _ = Describe("Query Cache Expires", func() {
 	var regularUserName string
 	var orgName string
 	var spaceName string
+
 	var timeout time.Duration = 3 * time.Second
-	var longTimeout time.Duration = 10 * time.Second
-	var freq time.Duration = 1 * time.Second
+	var deleteTimeout time.Duration = 10 * time.Second
+	var cacheRetentionTimeout time.Duration = 60 * time.Second
+
+	var pollingInterval time.Duration = 1 * time.Second
 
 	BeforeSuite(func() {
 		Expect(cf.Cf("api", "api.bosh-lite.com", "--skip-ssl-validation").
@@ -50,9 +53,9 @@ var _ = Describe("Query Cache Expires", func() {
 	AfterEach(func() {
 		asUser("admin", "admin", timeout, func() {
 			Expect(cf.Cf("delete-org", orgName, "-f").
-				Wait(longTimeout)).To(Exit(0))
+				Wait(deleteTimeout)).To(Exit(0))
 			Expect(cf.Cf("delete-user", regularUserName).
-				Wait(longTimeout)).To(Exit(0))
+				Wait(deleteTimeout)).To(Exit(0))
 		})
 	})
 
@@ -63,7 +66,7 @@ var _ = Describe("Query Cache Expires", func() {
 				Expect(cf.Cf("target", "-o", orgName).
 					Wait(timeout)).To(Exit(0))
 
-				Eventually(getLastSpace(timeout), timeout, freq).
+				Eventually(getLastSpace(timeout), timeout, pollingInterval).
 					Should(Equal(spaceName))
 			})
 
@@ -78,10 +81,7 @@ var _ = Describe("Query Cache Expires", func() {
 				Expect(cf.Cf("target", "-o", orgName).
 					Wait(timeout)).To(Exit(0))
 
-				// Wait for cache to expire
-				time.Sleep(60 * time.Second)
-
-				Eventually(getLastSpace(timeout), timeout, freq).
+				Eventually(getLastSpace(timeout), cacheRetentionTimeout, pollingInterval).
 					ShouldNot(Equal(spaceName))
 			})
 		})
